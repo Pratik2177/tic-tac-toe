@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tic Tac Toe</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #080808; color: #e8e8e8; font-family: 'JetBrains Mono', monospace; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 40%, rgba(168,255,120,0.04) 0%, transparent 65%); pointer-events: none; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes popIn { 0%{transform:scale(0) rotate(-10deg)} 70%{transform:scale(1.15)} 100%{transform:scale(1)} }
+    @keyframes winGlow { 0%,100%{box-shadow:0 0 0 rgba(168,255,120,0)} 50%{box-shadow:0 0 24px rgba(168,255,120,0.4)} }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const WINS = [ [0,1,2],[3,4,5],[6,7,8], [0,3,6],[1,4,7],[2,5,8], [0,4,8],[2,4,6] ];
+
+function checkWinner(board) {
+  for (const [a,b,c] of WINS) {
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) return { winner: board[a], line: [a,b,c] };
+  }
+  return null;
+}
+
+function Game() {
+  const [board, setBoard]   = useState(Array(9).fill(null));
+  const [xTurn, setXTurn]   = useState(true);
+  const [scores, setScores] = useState({ X:0, O:0, D:0 });
+  const [history, setHistory] = useState([]);
+  const [animCells, setAnimCells] = useState({});
+
+  const result  = checkWinner(board);
+  const isDraw  = !result && board.every(Boolean);
+  const isOver  = result || isDraw;
+  const current = xTurn ? 'X' : 'O';
+
+  useEffect(() => {
+    if (result) { setScores(s => ({ ...s, [result.winner]: s[result.winner]+1 })); setHistory(h => [`${result.winner} wins!`, ...h].slice(0,5)); }
+    else if (isDraw) { setScores(s => ({ ...s, D: s.D+1 })); setHistory(h => [`Draw!`, ...h].slice(0,5)); }
+  }, [result?.winner, isDraw]);
+
+  const play = (i) => {
+    if (board[i] || isOver) return;
+    const next = [...board]; next[i] = current; setBoard(next); setXTurn(t => !t);
+    setAnimCells(a => ({...a, [i]: true})); setTimeout(() => setAnimCells(a => ({...a, [i]: false})), 400);
+  };
+
+  const reset = () => { setBoard(Array(9).fill(null)); setXTurn(true); setAnimCells({}); };
+  const winLine = result?.line || [];
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:24, animation:'fadeUp 0.4s ease' }}>
+      <div style={{ display:'flex', gap:12 }}>
+        {[['X','Player 1','#a8ff78'],['D','Draw','#555'],['O','Player 2','#78ffd6']].map(([k,label,color]) => (
+          <div key={k} style={{ background:'#111', border:`1px solid ${k===('X'===current&&!isOver?'X':'')? color:'#1e1e1e'}`, borderRadius:12, padding:'14px 22px', textAlign:'center', minWidth:80, transition:'border-color 0.3s', ...(k==='X'&&xTurn&&!isOver ? {borderColor:'rgba(168,255,120,0.4)'}:{}), ...(k==='O'&&!xTurn&&!isOver ? {borderColor:'rgba(120,255,214,0.4)'}:{}) }}>
+            <div style={{ fontSize:'0.6rem', color:'#555', letterSpacing:'0.1em', marginBottom:4 }}>{label}</div>
+            <div style={{ fontFamily:"'Syne',sans-serif", fontSize:'2rem', fontWeight:800, color, lineHeight:1 }}>{scores[k]}</div>
+            <div style={{ fontSize:'0.75rem', color, marginTop:4, fontWeight:600 }}>{k}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ fontFamily:"'Syne',sans-serif", fontSize:'1.1rem', fontWeight:700, color: isOver ? '#a8ff78' : '#e8e8e8', letterSpacing:'-0.2px', animation: isOver ? 'winGlow 1.5s infinite' : 'none', textAlign:'center', minHeight:28 }}>
+        {result ? `🎉 Player ${result.winner} Wins!` : isDraw ? "🤝 It's a Draw!" : `Player ${current}'s Turn`}
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, animation: isDraw ? 'shake 0.5s ease' : 'none', }}>
+        {board.map((cell, i) => {
+          const isWinCell = winLine.includes(i); const isEmpty = !cell && !isOver;
+          return (
+            <button key={i} onClick={() => play(i)} style={{ width:100, height:100, borderRadius:16, background: isWinCell ? 'rgba(168,255,120,0.1)' : '#111', border: `2px solid ${isWinCell ? '#a8ff78' : '#1e1e1e'}`, cursor: isEmpty ? 'pointer' : 'default', fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize: cell ? '2.8rem' : '1.4rem', color: cell === 'X' ? '#a8ff78' : cell === 'O' ? '#78ffd6' : 'transparent', transition:'background 0.2s, border-color 0.2s, color 0.15s', animation: animCells[i] ? 'popIn 0.35s ease' : 'none', outline:'none', }} onMouseEnter={e => { if (isEmpty) { e.target.style.background='#161616'; e.target.style.color='rgba(168,255,120,0.25)'; e.target.textContent=current; } }} onMouseLeave={e => { if (isEmpty) { e.target.style.background='#111'; e.target.style.color='transparent'; e.target.textContent=''; } }}>{cell || ''}</button>
+          );
+        })}
+      </div>
+
+      <div style={{ display:'flex', gap:12 }}>
+        <button onClick={reset} style={{ background: isOver ? '#a8ff78' : 'none', border: isOver ? 'none' : '1px solid #1e1e1e', color: isOver ? '#000' : '#555', fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:'0.88rem', padding:'11px 24px', borderRadius:10, cursor:'pointer', transition:'all 0.2s' }}>{isOver ? '▶ Play Again' : '↺ Reset'}</button>
+        <button onClick={() => setScores({X:0,O:0,D:0})} style={{ background:'none', border:'1px solid #1e1e1e', color:'#555', fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:'0.88rem', padding:'11px 24px', borderRadius:10, cursor:'pointer' }}>Clear Scores</button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Game/>);
+</script>
+</body>
+</html>
